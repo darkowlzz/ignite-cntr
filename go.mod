@@ -6,6 +6,7 @@ require (
 	github.com/containerd/containerd v1.3.3 // indirect
 	github.com/docker/docker v17.12.0-ce-rc1.0.20200309214505-aa6a9891b09c+incompatible // indirect
 	github.com/fsouza/go-dockerclient v1.6.3
+	github.com/joho/godotenv v1.3.0
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/spf13/cobra v0.0.7

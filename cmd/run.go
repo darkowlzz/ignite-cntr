@@ -16,9 +16,13 @@ limitations under the License.
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"path"
+	"strings"
+	"syscall"
 
+	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
 	"github.com/weaveworks/gitops-toolkit/pkg/filter"
 	api "github.com/weaveworks/ignite/pkg/apis/ignite"
@@ -32,25 +36,69 @@ import (
 	"github.com/darkowlzz/ignite-cntr/ssh"
 )
 
+const (
+	defaultUser = "root"
+)
+
+var (
+	// appEnvVars contains the environment variables to be set in the
+	// application container.
+	appEnvVars []string
+	// netHost is the host networking option for the application container.
+	netHost bool
+	// envFile is a list of files containing environment variables.
+	envFile []string
+)
+
 // runCmd represents the run command
 var runCmd = &cobra.Command{
-	Use:   "run",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Use:   "run <ignite-vm-name> <container-image>",
+	Short: "Run a container application inside VM.",
+	Long: `Run a container application inside an ignite VM. Configure the
+application using flags or application run configuration file.`,
+	Args: func(cmd *cobra.Command, args []string) error {
+		if len(args) != 2 {
+			return errors.New("require ignite VM name and container image name argument")
+		}
+		return nil
+	},
 	Run: func(cmd *cobra.Command, args []string) {
-		// fmt.Println("run called")
-		if err := runApp(); err != nil {
-			fmt.Printf("fail: %v", err)
+		vmName := args[0]
+		appContainer := args[1]
+
+		// Get all the env vars.
+		envVars, err := combinedEnvVars(appEnvVars, envFile)
+		if err != nil {
+			fmt.Printf("error while parsing env vars: %v", err)
+		}
+
+		if err := runApp(vmName, appContainer, envVars, netHost); err != nil {
+			fmt.Printf("error: %v\n", err)
 		}
 	},
 }
 
-func runApp() error {
+func combinedEnvVars(flagEnvVars, envVarFiles []string) ([]string, error) {
+	allEnvVars := flagEnvVars
+
+	for _, envVarFile := range envVarFiles {
+		envs, err := godotenv.Read(envVarFile)
+		if err != nil {
+			return nil, err
+		}
+		for k, v := range envs {
+			allEnvVars = append(allEnvVars, fmt.Sprintf("%s=%s", k, v))
+		}
+	}
+
+	return allEnvVars, nil
+}
+
+func runApp(vmName string, appContainer string, envVars []string, netHost bool) error {
+	if syscall.Getuid() != 0 {
+		return fmt.Errorf("this command needs to be run as root")
+	}
+
 	// Set default runtime and network plugin.
 	providers.RuntimeName = runtime.RuntimeDocker
 	providers.NetworkPluginName = network.PluginDockerBridge
@@ -65,18 +113,40 @@ func runApp() error {
 
 	iclient := providers.Client.VMs()
 
-	ip, key, err := getIPAndPrivateKey(iclient, "my-vm")
+	ip, key, err := getIPAndPrivateKey(iclient, vmName)
 	if err != nil {
 		return err
 	}
 
-	cmds := fmt.Sprintf(`ctr -n ignite container create quay.io/coreos/etcd:v3.4.7 etcd --env ETCD_LISTEN_CLIENT_URLS=http://0.0.0.0:2379 --env ETCD_ADVERTISE_CLIENT_URLS=http://%s:2379 --net-host
-ctr -n ignite task start -d etcd`, ip)
-	fmt.Println("CMD:", cmds)
-	_, _, err = ssh.RunSSHCommand(ip, "root", key, cmds)
+	appName := "container-app"
+
+	var appSetupCmd strings.Builder
+
+	// Create containerd container command.
+	createContainer := fmt.Sprintf(`ctr -n %s container create %s %s`, containerdNamespace, appContainer, appName)
+	appSetupCmd.WriteString(createContainer)
+
+	// Set the container environment variables.
+	for _, envVar := range envVars {
+		env := fmt.Sprintf(" --env %s", envVar)
+		appSetupCmd.WriteString(env)
+	}
+
+	// Enable host networking for the container if requested.
+	if netHost {
+		appSetupCmd.WriteString(" --net-host")
+	}
+
+	// appSetupCmd := fmt.Sprintf(`ctr -n ignite container create %s %s --env ETCD_LISTEN_CLIENT_URLS=http://0.0.0.0:2379 --env ETCD_ADVERTISE_CLIENT_URLS=http://%s:2379 --net-host`, appContainer, appName, ip)
+	fmt.Println("CMD:", appSetupCmd.String())
+	_, _, err = ssh.RunSSHCommand(ip, defaultUser, key, appSetupCmd.String())
 	if err != nil {
 		return err
 	}
+
+	// Run containerd container task.
+	appRunCmd := fmt.Sprintf(`ctr -n ignite task start -d %s`, appName)
+	_, _, err = ssh.RunSSHCommand(ip, defaultUser, key, appRunCmd)
 
 	return nil
 }
@@ -118,4 +188,8 @@ func init() {
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// runCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+
+	runCmd.Flags().StringArrayVarP(&appEnvVars, "env", "e", appEnvVars, "Set environment variables for the app container (SOME_VAR=someval)")
+	runCmd.Flags().BoolVar(&netHost, "net-host", false, "Enable host networking for the container")
+	runCmd.Flags().StringArrayVar(&envFile, "env-file", envFile, "Read in a file of environment variables")
 }

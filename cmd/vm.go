@@ -17,28 +17,60 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"math/rand"
+	"strings"
 	"time"
 
 	docker "github.com/fsouza/go-dockerclient"
 	"github.com/spf13/cobra"
 )
 
+var (
+	images    []string
+	baseImage string
+)
+
+const (
+	buildContainerPrefix = "ignite-cntr-build"
+	ctrPath              = "/usr/bin/ctr"
+	containerdNamespace  = "ignite"
+)
+
 // vmCmd represents the vm command
 var vmCmd = &cobra.Command{
-	Use:   "vm",
+	Use:   "vm <vm-image-name>",
 	Short: "Create VM application image.",
 	Long: `Create VM application image with preloaded container images. These
 images can be quickly run when the VM starts.`,
+	Args: func(cmd *cobra.Command, args []string) error {
+		if len(args) != 1 {
+			return errors.New("require one VM image name argument")
+		}
+		return nil
+	},
 	Run: func(cmd *cobra.Command, args []string) {
-		// fmt.Println("vm called")
-		if err := runVM(); err != nil {
-			fmt.Printf("fail: %v", err)
+		vmImage := args[0]
+		if err := runVMImageBuild(vmImage, baseImage, images); err != nil {
+			fmt.Printf("error: %v\n", err)
 		}
 	},
 }
 
-func runVM() error {
+func runVMImageBuild(vmImage string, baseImage string, containerImages []string) error {
+	var vmImageName, vmImageTag string
+
+	// Separate image name and tag.
+	vmImg := strings.SplitN(vmImage, ":", 2)
+	vmImageName = vmImg[0]
+	if len(vmImg) < 2 {
+		vmImageTag = "latest"
+	} else {
+		vmImageTag = vmImg[1]
+	}
+
+	// Initialize a docker client.
 	client, err := docker.NewClientFromEnv()
 	if err != nil {
 		return err
@@ -46,10 +78,15 @@ func runVM() error {
 
 	ctx := context.Background()
 
+	rand.Seed(time.Now().UnixNano())
+
+	// Create a build container using the base image with random name. The
+	// container needs to stay around, run infinite sleep.
+	buildContainerName := fmt.Sprintf("%s-%d", buildContainerPrefix, rand.Int())
 	containerOpts := docker.CreateContainerOptions{
-		Name: "ignite-cntr-build",
+		Name: buildContainerName,
 		Config: &docker.Config{
-			Image: imageName,
+			Image: baseImage,
 			Cmd:   []string{"sleep", "infinity"},
 		},
 		HostConfig: &docker.HostConfig{
@@ -59,15 +96,15 @@ func runVM() error {
 	}
 	container, err := client.CreateContainer(containerOpts)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create build container: %v", err)
 	}
-
 	if err := client.StartContainerWithContext(container.ID, nil, ctx); err != nil {
-		return err
+		return fmt.Errorf("failed to start build container: %v", err)
 	}
-	fmt.Printf("Started build container %s", container.Name)
+	fmt.Printf("Started build container %s\n", container.Name)
 
 	// Start containerd inside the build container.
+	fmt.Println("Starting containerd in the build container...")
 	execOpts := docker.CreateExecOptions{
 		Privileged: true,
 		Container:  container.ID,
@@ -77,9 +114,6 @@ func runVM() error {
 	if err != nil {
 		return err
 	}
-
-	fmt.Println("Starting containerd...")
-
 	startExecOpts := docker.StartExecOptions{
 		Detach: true,
 	}
@@ -88,10 +122,10 @@ func runVM() error {
 		defer execCloser.Close()
 	}
 
-	fmt.Println("Creating containerd namespace: ignite")
 	// Create ignite containerd namespace.
+	fmt.Printf("Creating containerd namespace: %s...\n", containerdNamespace)
 	createNSExecOpts := execOpts
-	createNSExecOpts.Cmd = []string{"/usr/bin/ctr", "namespace", "create", "ignite"}
+	createNSExecOpts.Cmd = []string{ctrPath, "namespace", "create", containerdNamespace}
 	createNSExec, err := client.CreateExec(createNSExecOpts)
 	if err != nil {
 		return err
@@ -101,41 +135,44 @@ func runVM() error {
 		return err
 	}
 
-	// Pull the application image.
-	// appImage := "docker.io/library/busybox:latest"
-	appImage := "quay.io/coreos/etcd:v3.4.7"
-	pullExecOpts := execOpts
-	pullExecOpts.Cmd = []string{"/usr/bin/ctr", "--namespace=ignite", "image", "pull", appImage}
-	pullExec, err := client.CreateExec(pullExecOpts)
-	if err != nil {
-		return err
-	}
-	err = client.StartExec(pullExec.ID, startExecOpts)
-	if err != nil {
-		return err
-	}
-
-	fmt.Printf("waiting for the image pull to complete")
-	for {
-		inspectRes, err := client.InspectExec(pullExec.ID)
+	// Pull the application images.
+	for _, containerImage := range containerImages {
+		pullExecOpts := execOpts
+		pullExecOpts.Cmd = []string{
+			ctrPath, fmt.Sprintf("--namespace=%s", containerdNamespace),
+			"image", "pull", containerImage,
+		}
+		pullExec, err := client.CreateExec(pullExecOpts)
 		if err != nil {
-			return nil
+			return err
+		}
+		err = client.StartExec(pullExec.ID, startExecOpts)
+		if err != nil {
+			return err
 		}
 
-		if !inspectRes.Running {
-			break
+		fmt.Printf("Waiting for %s image pull to complete", containerImage)
+		for {
+			inspectRes, err := client.InspectExec(pullExec.ID)
+			if err != nil {
+				return nil
+			}
+
+			if !inspectRes.Running {
+				break
+			}
+			fmt.Printf(".")
+			time.Sleep(3 * time.Second)
 		}
-		fmt.Printf(".")
-		time.Sleep(3 * time.Second)
+		// Newline.
+		fmt.Println()
 	}
 
 	// Commit the container to create an image.
-	vmImage := "darkowlzz/ignite-etcd"
-	vmTag := "dev"
 	commitOpts := docker.CommitContainerOptions{
 		Container:  container.ID,
-		Repository: vmImage,
-		Tag:        vmTag,
+		Repository: vmImageName,
+		Tag:        vmImageTag,
 		Context:    ctx,
 	}
 	finalImg, err := client.CommitContainer(commitOpts)
@@ -143,8 +180,9 @@ func runVM() error {
 		return err
 	}
 
-	fmt.Printf("Created VM application image: %s:%s (%s)", vmImage, vmTag, finalImg.ID)
+	fmt.Printf("\nCreated VM application image: %s:%s (%s)\n", vmImageName, vmImageTag, finalImg.ID)
 
+	// Delete the build container.
 	removeContainerOpts := docker.RemoveContainerOptions{
 		ID:      container.ID,
 		Force:   true,
@@ -169,4 +207,7 @@ func init() {
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// vmCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+
+	vmCmd.Flags().StringArrayVarP(&images, "image", "i", images, "Set an image to be loaded")
+	vmCmd.Flags().StringVarP(&baseImage, "baseImage", "b", defaultBaseImage, "Base image of the VM image build container")
 }
