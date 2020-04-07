@@ -113,6 +113,30 @@ TASK             PID    STATUS
 container-app    969    RUNNING
 ```
 
+For containers that require a command to be passed, use `--cmd` flag.
+
+```console
+$ sudo ignite-cntr run my-vm docker.io/library/redis:5.0.8 --net-host --cmd redis-server
+Creating container container-app-1944007321518467805...
+CMD: /usr/bin/ctr -n ignite container create docker.io/library/redis:5.0.8 container-app-1944007321518467805 redis-server --net-host
+[STDOUT]:
+
+Running task container-app-1944007321518467805...
+[STDOUT]:
+1:C 07 Apr 2020 17:23:24.439 # oO0OoO0OoO0Oo Redis is starting oO0OoO0OoO0Oo
+1:C 07 Apr 2020 17:23:24.439 # Redis version=5.0.8, bits=64, commit=00000000, modified=0, pid=1, just started
+1:C 07 Apr 2020 17:23:24.439 # Warning: no config file specified, using the default config. In order to specify a config file use redis-server /path/to/redis.conf
+1:M 07 Apr 2020 17:23:24.440 # You requested maxclients of 10000 requiring at least 10032 max file descriptors.
+1:M 07 Apr 2020 17:23:24.440 # Server can't set maximum open files to 10032 because of OS error: Operation not permitted.
+1:M 07 Apr 2020 17:23:24.440 # Current maximum open files is 1024. maxclients has been reduced to 992 to compensate for low ulimit. If you need higher maxclients increase 'ulimit -n'.
+1:M 07 Apr 2020 17:23:24.440 * Running mode=standalone, port=6379.
+1:M 07 Apr 2020 17:23:24.440 # WARNING: The TCP backlog setting of 511 cannot be enforced because /proc/sys/net/core/somaxconn is set to the lower value of 128.
+1:M 07 Apr 2020 17:23:24.440 # Server initialized
+1:M 07 Apr 2020 17:23:24.440 # WARNING overcommit_memory is set to 0! Background save may fail under low memory condition. To fix this issue add 'vm.overcommit_memory = 1' to /etc/sysctl.conf and then reboot or run the command 'sysctl vm.overcommit_memory=1' for this to take effect.
+1:M 07 Apr 2020 17:23:24.440 # WARNING you have Transparent Huge Pages (THP) support enabled in your kernel. This will create latency and memory usage issues with Redis. To fix this issue run the command 'echo never > /sys/kernel/mm/transparent_hugepage/enabled' as root, and add it to your /etc/rc.local in order to retain the setting after a reboot. Redis must be restarted after THP is disabled.
+1:M 07 Apr 2020 17:23:24.440 * Ready to accept connections
+```
+
 ### Container Environment Variables File
 
 Passing environment variables file is supported. In the above example, the etcd
