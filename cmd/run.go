@@ -18,9 +18,11 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"math/rand"
 	"path"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
@@ -48,6 +50,11 @@ var (
 	netHost bool
 	// envFile is a list of files containing environment variables.
 	envFile []string
+	// appCmd is the command that's passed to a container to run.
+	appCmd string
+	// appCmdArgs is the arguments to the command passed to a container. A
+	// command must be set for passing the args, else the args will be ignored.
+	appCmdArgs []string
 )
 
 // runCmd represents the run command
@@ -64,7 +71,7 @@ application using flags or application run configuration file.`,
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		vmName := args[0]
-		appContainer := args[1]
+		appImage := args[1]
 
 		// Get all the env vars.
 		envVars, err := combinedEnvVars(appEnvVars, envFile)
@@ -72,7 +79,7 @@ application using flags or application run configuration file.`,
 			fmt.Printf("error while parsing env vars: %v", err)
 		}
 
-		if err := runApp(vmName, appContainer, envVars, netHost); err != nil {
+		if err := runApp(vmName, appImage, appCmd, appCmdArgs, envVars, netHost); err != nil {
 			fmt.Printf("error: %v\n", err)
 		}
 	},
@@ -94,7 +101,7 @@ func combinedEnvVars(flagEnvVars, envVarFiles []string) ([]string, error) {
 	return allEnvVars, nil
 }
 
-func runApp(vmName string, appContainer string, envVars []string, netHost bool) error {
+func runApp(vmName string, appImage string, appcmd string, appCmdArgs []string, envVars []string, netHost bool) error {
 	if syscall.Getuid() != 0 {
 		return fmt.Errorf("this command needs to be run as root")
 	}
@@ -118,13 +125,29 @@ func runApp(vmName string, appContainer string, envVars []string, netHost bool) 
 		return err
 	}
 
-	appName := "container-app"
+	// Generate a random container app name.
+	rand.Seed(time.Now().UnixNano())
+	appName := fmt.Sprintf("container-app-%d", rand.Int())
 
 	var appSetupCmd strings.Builder
 
+	// NOTE: The order of arguments to ctr container create is important.
+	// <image> <container-name> [command] [args] [--env|--net-host|...]
+
 	// Create containerd container command.
-	createContainer := fmt.Sprintf(`ctr -n %s container create %s %s`, containerdNamespace, appContainer, appName)
+	//   ctr -n <namespace> container create <image> <container-name>
+	createContainer := fmt.Sprintf(`%s -n %s container create %s %s`, ctrPath, containerdNamespace, appImage, appName)
 	appSetupCmd.WriteString(createContainer)
+
+	// Set the container command if provided.
+	if appCmd != "" {
+		appSetupCmd.WriteString(fmt.Sprintf(" %s", appCmd))
+
+		// Pass the command arguments.
+		for _, arg := range appCmdArgs {
+			appSetupCmd.WriteString(fmt.Sprintf(" %s", arg))
+		}
+	}
 
 	// Set the container environment variables.
 	for _, envVar := range envVars {
@@ -137,16 +160,31 @@ func runApp(vmName string, appContainer string, envVars []string, netHost bool) 
 		appSetupCmd.WriteString(" --net-host")
 	}
 
-	// appSetupCmd := fmt.Sprintf(`ctr -n ignite container create %s %s --env ETCD_LISTEN_CLIENT_URLS=http://0.0.0.0:2379 --env ETCD_ADVERTISE_CLIENT_URLS=http://%s:2379 --net-host`, appContainer, appName, ip)
+	fmt.Printf("Creating container %s...\n", appName)
 	fmt.Println("CMD:", appSetupCmd.String())
-	_, _, err = ssh.RunSSHCommand(ip, defaultUser, key, appSetupCmd.String())
+	if err = runCmdInVM(ip, key, appSetupCmd.String()); err != nil {
+		return err
+	}
+
+	fmt.Printf("Running task %s...\n", appName)
+	// Run containerd container task.
+	appRunCmd := fmt.Sprintf(`ctr -n ignite task start -d %s`, appName)
+	return runCmdInVM(ip, key, appRunCmd)
+}
+
+// runCmdInVM takes a VM IP, ssh key and runs the given command in the VM.
+func runCmdInVM(ip, key, cmd string) error {
+	cmdOut, cmdErr, err := ssh.RunSSHCommand(ip, defaultUser, key, cmd)
 	if err != nil {
 		return err
 	}
 
-	// Run containerd container task.
-	appRunCmd := fmt.Sprintf(`ctr -n ignite task start -d %s`, appName)
-	_, _, err = ssh.RunSSHCommand(ip, defaultUser, key, appRunCmd)
+	// Print the command stdout and stderr.
+	fmt.Printf("[STDOUT]:\n%s\n", cmdOut)
+
+	if len(cmdErr) > 0 {
+		fmt.Printf("[STDERR]:\n%s\n", cmdErr)
+	}
 
 	return nil
 }
@@ -192,4 +230,6 @@ func init() {
 	runCmd.Flags().StringArrayVarP(&appEnvVars, "env", "e", appEnvVars, "Set environment variables for the app container (SOME_VAR=someval)")
 	runCmd.Flags().BoolVar(&netHost, "net-host", false, "Enable host networking for the container")
 	runCmd.Flags().StringArrayVar(&envFile, "env-file", envFile, "Read in a file of environment variables")
+	runCmd.Flags().StringVarP(&appCmd, "cmd", "c", "", "Command passed to the container app")
+	runCmd.Flags().StringArrayVarP(&appCmdArgs, "arg", "a", appCmdArgs, "Arguments to the command passed to the container app")
 }
