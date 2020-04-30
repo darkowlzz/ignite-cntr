@@ -18,13 +18,17 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"io"
 	"math/rand"
+	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
 
 	"github.com/joho/godotenv"
+	"github.com/pkg/sftp"
 	"github.com/spf13/cobra"
 	"github.com/weaveworks/gitops-toolkit/pkg/filter"
 	api "github.com/weaveworks/ignite/pkg/apis/ignite"
@@ -214,6 +218,28 @@ func getVMByName(iclient client.VMClient, name string) (*api.VM, error) {
 	return iclient.Find(filter.NewIDNameFilter(name))
 }
 
+// copyFileIntoVM copies a given file on host to a given path in the VM.
+func copyFileIntoVM(ip, privateKeyFile, localPath, vmPath string) error {
+	// Create a new SSH Client.
+	client, err := ssh.NewSSHClient(ip, defaultUser, privateKeyFile)
+	if err != nil {
+		return err
+	}
+	defer client.Close()
+
+	sftpClient, err := sftp.NewClient(client)
+	if err != nil {
+		return err
+	}
+	defer sftpClient.Close()
+
+	// Clean the source and destination paths.
+	source := filepath.Clean(localPath)
+	dest := filepath.Clean(vmPath)
+
+	return copyToVM(sftpClient, source, dest)
+}
+
 func init() {
 	rootCmd.AddCommand(runCmd)
 
@@ -232,4 +258,65 @@ func init() {
 	runCmd.Flags().StringArrayVar(&envFile, "env-file", envFile, "Read in a file of environment variables")
 	runCmd.Flags().StringVarP(&appCmd, "cmd", "c", "", "Command passed to the container app")
 	runCmd.Flags().StringArrayVarP(&appCmdArgs, "arg", "a", appCmdArgs, "Arguments to the command passed to the container app")
+}
+
+// copyToVM copies from host to VM.
+func copyToVM(client *sftp.Client, localPath, remotePath string) error {
+	// Check if the source exists.
+	fi, err := os.Stat(localPath)
+	if err != nil {
+		return err
+	}
+
+	if fi.IsDir() {
+		// TODO: Implement copying directory. Or maybe use ignite's built in
+		// copy for this.
+		return fmt.Errorf("copying directory to VM not supported")
+	}
+	return copyFileToVM(client, localPath, remotePath)
+	// return copyDirToVM(client, localPath, remotePath)
+}
+
+// copyFileToVM copies file from host to VM.
+func copyFileToVM(client *sftp.Client, localPath, remotePath string) error {
+	in, err := os.Open(localPath)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+
+	// NOTE: Removed some important checks here to keep this simple. Check
+	// upstream ignite's implementation for complete checks.
+
+	out, err := client.Create(remotePath)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	// Copy source to destination.
+	_, err = io.Copy(out, in)
+	if err != nil {
+		return err
+	}
+
+	// Read and apply source file modes and owner info to destination file.
+	sfi, err := os.Stat(localPath)
+	if err != nil {
+		return err
+	}
+	stat, ok := sfi.Sys().(*syscall.Stat_t)
+	if !ok {
+		return fmt.Errorf("failed to get raw syscall.Stat_t data for %q", localPath)
+	}
+
+	if err := client.Chmod(remotePath, sfi.Mode()); err != nil {
+		return err
+	}
+
+	if err := client.Chown(remotePath, int(stat.Uid), int(stat.Gid)); err != nil {
+		return err
+	}
+
+	return nil
 }
