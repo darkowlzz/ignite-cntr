@@ -11,7 +11,7 @@ require (
 	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/spf13/cobra v0.0.7
 	github.com/spf13/viper v1.6.2
-	github.com/weaveworks/gitops-toolkit v0.0.0-20190830163251-b6682e98e2fa
+	github.com/weaveworks/gitops-toolkit v0.0.0-20200410161308-f0fc148681c0
 	github.com/weaveworks/ignite v0.6.3
 	golang.org/x/crypto v0.0.0-20200220183623-bac4c82f6975
 )
@@ -20,4 +20,5 @@ replace (
 	github.com/containerd/containerd => github.com/containerd/containerd v1.3.0
 	github.com/docker/distribution => github.com/docker/distribution v0.0.0-20190711223531-1fb7fffdb266
 	github.com/weaveworks/ignite => github.com/darkowlzz/ignite v0.6.1-0.20200323175308-232484ec80ee
+	k8s.io/kube-openapi => k8s.io/kube-openapi v0.0.0-20200121204235-bf4fb3bd569c
 )
