@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"math/rand"
 	"path"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -41,6 +42,9 @@ import (
 
 const (
 	defaultUser = "root"
+	// Any mounts are copied into this directory of the VM and then mounted into
+	// the application container.
+	defaultMountParentDir = "/tmp"
 )
 
 var (
@@ -56,6 +60,10 @@ var (
 	// appCmdArgs is the arguments to the command passed to a container. A
 	// command must be set for passing the args, else the args will be ignored.
 	appCmdArgs []string
+	// mountSrcPath is the path of the source that needs to be mounted.
+	mountSrcPath string
+	// mountDestPath is the mount point in the application container.
+	mountDestPath string
 )
 
 // runCmd represents the run command
@@ -126,6 +134,25 @@ func runApp(vmName string, appImage string, appcmd string, appCmdArgs []string, 
 		return err
 	}
 
+	// containerMountSet is used to check if the mount flags must be set when
+	// creating a container.
+	containerMountSet := false
+
+	// TODO: Add support for multiple mounts.
+	if mountSrcPath != "" {
+		// Ensure mount destination path is also passed.
+		if mountDestPath == "" {
+			return fmt.Errorf("when mounting, both --mount-src and --mount-dest must be set")
+		}
+
+		if err := copyFileToVM(vmName, mountSrcPath); err != nil {
+			return fmt.Errorf("failed to copy mount-src %q into the VM", mountSrcPath)
+		}
+		// Set the containerMountSet to true after a successful copy of files to
+		// the VM.
+		containerMountSet = true
+	}
+
 	// Generate a random container app name.
 	rand.Seed(time.Now().UnixNano())
 	appName := fmt.Sprintf("container-app-%d", rand.Int())
@@ -159,6 +186,14 @@ func runApp(vmName string, appImage string, appcmd string, appCmdArgs []string, 
 	// Enable host networking for the container if requested.
 	if netHost {
 		appSetupCmd.WriteString(" --net-host")
+	}
+
+	// Set mount flags. Source is the path in the VM, destination is the path
+	// in the application container.
+	if containerMountSet {
+		mntSrc := filepath.Join(defaultMountParentDir, filepath.Base(mountSrcPath))
+		mountFlag := fmt.Sprintf(" --mount=\"src=%s,dst=%s,type=bind,options=rbind:ro\"", mntSrc, mountDestPath)
+		appSetupCmd.WriteString(mountFlag)
 	}
 
 	fmt.Printf("Creating container %s...\n", appName)
@@ -215,9 +250,15 @@ func getVMByName(iclient client.VMClient, name string) (*api.VM, error) {
 	return iclient.Find(filter.NewIDNameFilter(name))
 }
 
-func copyFileToVM(iclient client.VMClient, name, source, destination string) error {
+// copyFileToVM copies a file into a given VM.
+func copyFileToVM(vmName, source string) error {
+	// Construct destination path: <vm-name>:<path-in-vm>
+	destPath := filepath.Join(defaultMountParentDir, filepath.Base(source))
+	dest := fmt.Sprintf("%s:%s", vmName, destPath)
+
+	// Create ignite copy options with source and destination.
 	cpFlags := igniteRun.CPFlags{}
-	copyOpts, err := cpFlags.NewCPOptions(source, destination)
+	copyOpts, err := cpFlags.NewCPOptions(source, dest)
 	if err != nil {
 		return err
 	}
@@ -246,4 +287,6 @@ func init() {
 	runCmd.Flags().StringArrayVar(&envFile, "env-file", envFile, "Read in a file of environment variables")
 	runCmd.Flags().StringVarP(&appCmd, "cmd", "c", "", "Command passed to the container app")
 	runCmd.Flags().StringArrayVarP(&appCmdArgs, "arg", "a", appCmdArgs, "Arguments to the command passed to the container app")
+	runCmd.Flags().StringVar(&mountSrcPath, "mount-src", "", "local path that needs to be mounted in the application container")
+	runCmd.Flags().StringVar(&mountDestPath, "mount-dest", "", "path in the application container where the source path is mounted")
 }

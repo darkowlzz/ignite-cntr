@@ -155,3 +155,15 @@ CMD: ctr -n ignite container create quay.io/coreos/etcd:v3.4.7 container-app --e
 ```
 
 It also supports merging flag based env vars and file based env vars.
+
+### Mounting Config File
+
+Configuration file can be mounted into the container using the `--mount-src` and
+`--mount-dest` flags. For example, to run nginx with a config file:
+
+```console
+$ sudo ignite-cntr run my-vm docker.io/library/nginx:1.17.10 --mount-src=default.conf --mount-dest=/etc/nginx/conf.d/default.conf --net-host
+```
+
+This will copy the config file into the VM and then mount the file into the
+application container at the specified destination.
