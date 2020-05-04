@@ -27,6 +27,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
 	"github.com/weaveworks/gitops-toolkit/pkg/filter"
+	igniteRun "github.com/weaveworks/ignite/cmd/ignite/run"
 	api "github.com/weaveworks/ignite/pkg/apis/ignite"
 	"github.com/weaveworks/ignite/pkg/client"
 	"github.com/weaveworks/ignite/pkg/constants"
@@ -212,6 +213,19 @@ func getIPAndPrivateKey(iclient client.VMClient, name string) (string, string, e
 
 func getVMByName(iclient client.VMClient, name string) (*api.VM, error) {
 	return iclient.Find(filter.NewIDNameFilter(name))
+}
+
+func copyFileToVM(iclient client.VMClient, name, source, destination string) error {
+	cpFlags := igniteRun.CPFlags{}
+	copyOpts, err := cpFlags.NewCPOptions(source, destination)
+	if err != nil {
+		return err
+	}
+
+	if err := igniteRun.CP(copyOpts); err != nil {
+		return err
+	}
+	return nil
 }
 
 func init() {
