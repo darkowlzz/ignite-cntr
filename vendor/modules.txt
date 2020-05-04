@@ -23,13 +23,15 @@ github.com/Microsoft/hcsshim/internal/timeout
 github.com/Microsoft/hcsshim/internal/vmcompute
 github.com/Microsoft/hcsshim/internal/wclayer
 github.com/Microsoft/hcsshim/osversion
-# github.com/c2h5oh/datasize v0.0.0-20171227191756-4eba002a5eae
+# github.com/alessio/shellescape v1.2.2
+github.com/alessio/shellescape
+# github.com/c2h5oh/datasize v0.0.0-20200112174442-28bbd4740fee
 github.com/c2h5oh/datasize
-# github.com/containerd/cgroups v0.0.0-20190919134610-bf292b21730f
+# github.com/containerd/cgroups v0.0.0-20200407151229-7fc7a507c04c
 github.com/containerd/cgroups/stats/v1
-# github.com/containerd/console v0.0.0-20181022165439-0650fd9eeb50
+# github.com/containerd/console v1.0.0
 github.com/containerd/console
-# github.com/containerd/containerd v1.3.3 => github.com/containerd/containerd v1.3.0
+# github.com/containerd/containerd v1.3.3
 github.com/containerd/containerd
 github.com/containerd/containerd/api/services/containers/v1
 github.com/containerd/containerd/api/services/content/v1
@@ -85,20 +87,20 @@ github.com/containerd/containerd/snapshots/proxy
 github.com/containerd/containerd/sys
 github.com/containerd/containerd/sys/reaper
 github.com/containerd/containerd/version
-# github.com/containerd/continuity v0.0.0-20190815185530-f2a389ac0a02
+# github.com/containerd/continuity v0.0.0-20200228182428-0f16d7a0959c
 github.com/containerd/continuity/fs
 github.com/containerd/continuity/pathdriver
 github.com/containerd/continuity/syscallx
 github.com/containerd/continuity/sysx
 # github.com/containerd/fifo v0.0.0-20191213151349-ff969a566b00
 github.com/containerd/fifo
-# github.com/containerd/go-cni v0.0.0-20190813230227-49fbd9b210f3
+# github.com/containerd/go-cni v0.0.0-20200107172653-c154a49e2c75
 github.com/containerd/go-cni
-# github.com/containerd/go-runc v0.0.0-20190603165425-9007c2405372
+# github.com/containerd/go-runc v0.0.0-20200220073739-7016d3ce2328
 github.com/containerd/go-runc
-# github.com/containerd/ttrpc v0.0.0-20190828154514-0e0f228740de
+# github.com/containerd/ttrpc v1.0.0
 github.com/containerd/ttrpc
-# github.com/containerd/typeurl v0.0.0-20190515163108-7312978f2987
+# github.com/containerd/typeurl v1.0.0
 github.com/containerd/typeurl
 # github.com/containernetworking/cni v0.7.2-0.20190807151350-8c6c47d1c7fc
 github.com/containernetworking/cni/libcni
@@ -112,7 +114,7 @@ github.com/containernetworking/plugins/pkg/ip
 github.com/containernetworking/plugins/pkg/ns
 github.com/containernetworking/plugins/pkg/utils
 github.com/containernetworking/plugins/pkg/utils/hwaddr
-# github.com/containers/image v2.0.0+incompatible
+# github.com/containers/image v3.0.2+incompatible
 github.com/containers/image/docker/reference
 # github.com/coreos/go-iptables v0.4.5
 github.com/coreos/go-iptables/iptables
@@ -122,7 +124,7 @@ github.com/davecgh/go-spew/spew
 github.com/docker/distribution/digestset
 github.com/docker/distribution/reference
 github.com/docker/distribution/registry/api/errcode
-# github.com/docker/docker v17.12.0-ce-rc1.0.20200309214505-aa6a9891b09c+incompatible
+# github.com/docker/docker v17.12.0-ce-rc1.0.20200309214505-aa6a9891b09c+incompatible => github.com/docker/docker v0.7.3-0.20190327010347-be7ac8be2ae0
 github.com/docker/docker/api
 github.com/docker/docker/api/types
 github.com/docker/docker/api/types/blkiodev
@@ -162,13 +164,15 @@ github.com/docker/go-connections/tlsconfig
 github.com/docker/go-events
 # github.com/docker/go-units v0.4.0
 github.com/docker/go-units
+# github.com/freddierice/go-losetup v0.0.0-20170407175016-fc9adea44124
+github.com/freddierice/go-losetup
 # github.com/fsnotify/fsnotify v1.4.7
 github.com/fsnotify/fsnotify
 # github.com/fsouza/go-dockerclient v1.6.3
 github.com/fsouza/go-dockerclient
-# github.com/gogo/googleapis v1.2.0
+# github.com/gogo/googleapis v1.3.2
 github.com/gogo/googleapis/google/rpc
-# github.com/gogo/protobuf v1.2.2-0.20190723190241-65acae22fc9d
+# github.com/gogo/protobuf v1.3.1
 github.com/gogo/protobuf/gogoproto
 github.com/gogo/protobuf/proto
 github.com/gogo/protobuf/protoc-gen-gogo/descriptor
@@ -180,7 +184,7 @@ github.com/golang/protobuf/ptypes
 github.com/golang/protobuf/ptypes/any
 github.com/golang/protobuf/ptypes/duration
 github.com/golang/protobuf/ptypes/timestamp
-# github.com/google/gofuzz v1.0.0
+# github.com/google/gofuzz v1.1.0
 github.com/google/gofuzz
 # github.com/googleapis/gnostic v0.3.0
 github.com/googleapis/gnostic/OpenAPIv2
@@ -205,13 +209,15 @@ github.com/hashicorp/hcl/json/token
 github.com/inconshreveable/mousetrap
 # github.com/joho/godotenv v1.3.0
 github.com/joho/godotenv
-# github.com/json-iterator/go v1.1.8
+# github.com/json-iterator/go v1.1.9
 github.com/json-iterator/go
 # github.com/konsorten/go-windows-terminal-sequences v1.0.2
 github.com/konsorten/go-windows-terminal-sequences
+# github.com/kr/fs v0.1.0
+github.com/kr/fs
 # github.com/magiconair/properties v1.8.1
 github.com/magiconair/properties
-# github.com/miekg/dns v1.1.14
+# github.com/miekg/dns v1.1.29
 github.com/miekg/dns
 # github.com/mitchellh/go-homedir v1.1.0
 github.com/mitchellh/go-homedir
@@ -223,6 +229,8 @@ github.com/modern-go/concurrent
 github.com/modern-go/reflect2
 # github.com/morikuni/aec v1.0.0
 github.com/morikuni/aec
+# github.com/nightlyone/lockfile v1.0.0
+github.com/nightlyone/lockfile
 # github.com/opencontainers/go-digest v1.0.0-rc1
 github.com/opencontainers/go-digest
 # github.com/opencontainers/image-spec v1.0.1
@@ -232,17 +240,19 @@ github.com/opencontainers/image-spec/specs-go/v1
 # github.com/opencontainers/runc v0.1.1
 github.com/opencontainers/runc/libcontainer/system
 github.com/opencontainers/runc/libcontainer/user
-# github.com/opencontainers/runtime-spec v1.0.1
+# github.com/opencontainers/runtime-spec v1.0.2
 github.com/opencontainers/runtime-spec/specs-go
-# github.com/otiai10/copy v1.0.1
+# github.com/otiai10/copy v1.1.1
 github.com/otiai10/copy
 # github.com/pelletier/go-toml v1.2.0
 github.com/pelletier/go-toml
 # github.com/pkg/errors v0.9.1
 github.com/pkg/errors
+# github.com/pkg/sftp v1.11.0
+github.com/pkg/sftp
 # github.com/safchain/ethtool v0.0.0-20190326074333-42ed695e3de8
 github.com/safchain/ethtool
-# github.com/sirupsen/logrus v1.4.2
+# github.com/sirupsen/logrus v1.5.0
 github.com/sirupsen/logrus
 # github.com/spf13/afero v1.1.2
 github.com/spf13/afero
@@ -275,18 +285,26 @@ github.com/weaveworks/gitops-toolkit/pkg/storage/cache
 github.com/weaveworks/gitops-toolkit/pkg/storage/filterer
 github.com/weaveworks/gitops-toolkit/pkg/util
 github.com/weaveworks/gitops-toolkit/pkg/util/patch
-# github.com/weaveworks/ignite v0.6.3 => github.com/darkowlzz/ignite v0.6.1-0.20200323175308-232484ec80ee
+# github.com/weaveworks/ignite v0.6.3 => github.com/darkowlzz/ignite v0.6.1-0.20200430172519-da1178c08931
+github.com/weaveworks/ignite/cmd/ignite/run
 github.com/weaveworks/ignite/pkg/apis/ignite
 github.com/weaveworks/ignite/pkg/apis/ignite/scheme
 github.com/weaveworks/ignite/pkg/apis/ignite/v1alpha1
 github.com/weaveworks/ignite/pkg/apis/ignite/v1alpha2
+github.com/weaveworks/ignite/pkg/apis/ignite/validation
 github.com/weaveworks/ignite/pkg/apis/meta/v1alpha1
 github.com/weaveworks/ignite/pkg/client
 github.com/weaveworks/ignite/pkg/constants
+github.com/weaveworks/ignite/pkg/dmlegacy
+github.com/weaveworks/ignite/pkg/dmlegacy/cleanup
+github.com/weaveworks/ignite/pkg/filter
 github.com/weaveworks/ignite/pkg/logs
+github.com/weaveworks/ignite/pkg/metadata
 github.com/weaveworks/ignite/pkg/network
 github.com/weaveworks/ignite/pkg/network/cni
 github.com/weaveworks/ignite/pkg/network/docker
+github.com/weaveworks/ignite/pkg/operations
+github.com/weaveworks/ignite/pkg/operations/lookup
 github.com/weaveworks/ignite/pkg/preflight
 github.com/weaveworks/ignite/pkg/preflight/checkers
 github.com/weaveworks/ignite/pkg/providers
@@ -302,6 +320,7 @@ github.com/weaveworks/ignite/pkg/resolvconf
 github.com/weaveworks/ignite/pkg/runtime
 github.com/weaveworks/ignite/pkg/runtime/containerd
 github.com/weaveworks/ignite/pkg/runtime/docker
+github.com/weaveworks/ignite/pkg/source
 github.com/weaveworks/ignite/pkg/util
 # go.opencensus.io v0.22.0
 go.opencensus.io
@@ -309,7 +328,7 @@ go.opencensus.io/internal
 go.opencensus.io/trace
 go.opencensus.io/trace/internal
 go.opencensus.io/trace/tracestate
-# golang.org/x/crypto v0.0.0-20200220183623-bac4c82f6975
+# golang.org/x/crypto v0.0.0-20200406173513-056763e48d71
 golang.org/x/crypto/blowfish
 golang.org/x/crypto/chacha20
 golang.org/x/crypto/curve25519
@@ -319,6 +338,7 @@ golang.org/x/crypto/internal/subtle
 golang.org/x/crypto/poly1305
 golang.org/x/crypto/ssh
 golang.org/x/crypto/ssh/internal/bcrypt_pbkdf
+golang.org/x/crypto/ssh/terminal
 # golang.org/x/net v0.0.0-20191004110552-13f9640d40b9
 golang.org/x/net/bpf
 golang.org/x/net/context
@@ -335,10 +355,10 @@ golang.org/x/net/ipv4
 golang.org/x/net/ipv6
 golang.org/x/net/proxy
 golang.org/x/net/trace
-# golang.org/x/sync v0.0.0-20190423024810-112230192c58
+# golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e
 golang.org/x/sync/errgroup
 golang.org/x/sync/semaphore
-# golang.org/x/sys v0.0.0-20191210023423-ac6580df4449
+# golang.org/x/sys v0.0.0-20200409092240-59c9f1ba88fa
 golang.org/x/sys/cpu
 golang.org/x/sys/unix
 golang.org/x/sys/windows
@@ -390,7 +410,7 @@ gopkg.in/inf.v0
 gopkg.in/ini.v1
 # gopkg.in/yaml.v2 v2.2.8
 gopkg.in/yaml.v2
-# k8s.io/apimachinery v0.0.0-20190612205821-1799e75a0719
+# k8s.io/apimachinery v0.18.1
 k8s.io/apimachinery/pkg/api/resource
 k8s.io/apimachinery/pkg/apis/meta/v1
 k8s.io/apimachinery/pkg/apis/meta/v1/unstructured
@@ -426,7 +446,9 @@ k8s.io/apimachinery/third_party/forked/golang/json
 k8s.io/apimachinery/third_party/forked/golang/reflect
 # k8s.io/klog v1.0.0
 k8s.io/klog
-# k8s.io/kube-openapi v0.0.0-20191107075043-30be4d16710a => k8s.io/kube-openapi v0.0.0-20200121204235-bf4fb3bd569c
+# k8s.io/kube-openapi v0.0.0-20200403204345-e1beb1bd0f35 => k8s.io/kube-openapi v0.0.0-20200121204235-bf4fb3bd569c
 k8s.io/kube-openapi/pkg/util/proto
-# sigs.k8s.io/yaml v1.1.0
+# sigs.k8s.io/structured-merge-diff/v3 v3.0.0
+sigs.k8s.io/structured-merge-diff/v3/value
+# sigs.k8s.io/yaml v1.2.0
 sigs.k8s.io/yaml
