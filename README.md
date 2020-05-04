@@ -1,5 +1,7 @@
 # ignite-cntr
 
+[![CircleCI](https://circleci.com/gh/darkowlzz/ignite-cntr.svg?style=shield)](https://app.circleci.com/pipelines/github/darkowlzz/ignite-cntr)
+
 Tool to build [ignite](https://github.com/weaveworks/ignite) VM image with a
 conatiner-runtime and preloaded images. It also helps to run the container
 application inside the VM.
