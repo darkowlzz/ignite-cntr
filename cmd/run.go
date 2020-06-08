@@ -12,7 +12,6 @@ import (
 
 	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
-	"github.com/weaveworks/gitops-toolkit/pkg/filter"
 	igniteRun "github.com/weaveworks/ignite/cmd/ignite/run"
 	api "github.com/weaveworks/ignite/pkg/apis/ignite"
 	"github.com/weaveworks/ignite/pkg/client"
@@ -21,6 +20,7 @@ import (
 	"github.com/weaveworks/ignite/pkg/providers"
 	providersIgnite "github.com/weaveworks/ignite/pkg/providers/ignite"
 	"github.com/weaveworks/ignite/pkg/runtime"
+	"github.com/weaveworks/libgitops/pkg/filter"
 
 	"github.com/darkowlzz/ignite-cntr/ssh"
 )

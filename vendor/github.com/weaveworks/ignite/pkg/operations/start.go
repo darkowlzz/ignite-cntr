@@ -7,7 +7,6 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
-	apiruntime "github.com/weaveworks/gitops-toolkit/pkg/runtime"
 	api "github.com/weaveworks/ignite/pkg/apis/ignite"
 	meta "github.com/weaveworks/ignite/pkg/apis/meta/v1alpha1"
 	"github.com/weaveworks/ignite/pkg/constants"
@@ -17,6 +16,7 @@ import (
 	"github.com/weaveworks/ignite/pkg/providers"
 	"github.com/weaveworks/ignite/pkg/runtime"
 	"github.com/weaveworks/ignite/pkg/util"
+	apiruntime "github.com/weaveworks/libgitops/pkg/runtime"
 )
 
 func StartVM(vm *api.VM, debug bool) error {
@@ -36,13 +36,10 @@ func StartVM(vm *api.VM, debug bool) error {
 
 	vmDir := filepath.Join(constants.VM_DIR, vm.GetUID().String())
 	kernelDir := filepath.Join(constants.KERNEL_DIR, kernelUID.String())
-	// Were parsing already validated data, ignore the error
-	// igniteImage, _ := meta.NewOCIImageRef(fmt.Sprintf("weaveworks/ignite:%s", version.GetIgnite().ImageTag()))
-	igniteImage, _ := meta.NewOCIImageRef(fmt.Sprintf("darkowlzz/ignite:%s", "dev"))
 
 	// Verify that the image containing ignite-spawn is pulled
 	// TODO: Integrate automatic pulling into pkg/runtime
-	if err := verifyPulled(igniteImage); err != nil {
+	if err := verifyPulled(vm.Spec.Sandbox.OCI); err != nil {
 		return err
 	}
 
@@ -102,7 +99,7 @@ func StartVM(vm *api.VM, debug bool) error {
 	}
 
 	// Run the VM container in Docker
-	containerID, err := providers.Runtime.RunContainer(igniteImage, config, util.NewPrefixer().Prefix(vm.GetUID()), vm.GetUID().String())
+	containerID, err := providers.Runtime.RunContainer(vm.Spec.Sandbox.OCI, config, util.NewPrefixer().Prefix(vm.GetUID()), vm.GetUID().String())
 	if err != nil {
 		return fmt.Errorf("failed to start container for VM %q: %v", vm.GetUID(), err)
 	}

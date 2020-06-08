@@ -281,11 +281,10 @@ github.com/weaveworks/gitops-toolkit/pkg/filter
 github.com/weaveworks/gitops-toolkit/pkg/runtime
 github.com/weaveworks/gitops-toolkit/pkg/serializer
 github.com/weaveworks/gitops-toolkit/pkg/storage
-github.com/weaveworks/gitops-toolkit/pkg/storage/cache
 github.com/weaveworks/gitops-toolkit/pkg/storage/filterer
 github.com/weaveworks/gitops-toolkit/pkg/util
 github.com/weaveworks/gitops-toolkit/pkg/util/patch
-# github.com/weaveworks/ignite v0.6.3 => github.com/darkowlzz/ignite v0.6.1-0.20200430172519-da1178c08931
+# github.com/weaveworks/ignite v0.6.3 => github.com/darkowlzz/ignite v0.6.1-0.20200608183646-d601c14af898
 github.com/weaveworks/ignite/cmd/ignite/run
 github.com/weaveworks/ignite/pkg/apis/ignite
 github.com/weaveworks/ignite/pkg/apis/ignite/scheme
@@ -322,6 +321,16 @@ github.com/weaveworks/ignite/pkg/runtime/containerd
 github.com/weaveworks/ignite/pkg/runtime/docker
 github.com/weaveworks/ignite/pkg/source
 github.com/weaveworks/ignite/pkg/util
+github.com/weaveworks/ignite/pkg/version
+# github.com/weaveworks/libgitops v0.0.0-20200605124804-6f749e677cc0
+github.com/weaveworks/libgitops/pkg/filter
+github.com/weaveworks/libgitops/pkg/runtime
+github.com/weaveworks/libgitops/pkg/serializer
+github.com/weaveworks/libgitops/pkg/storage
+github.com/weaveworks/libgitops/pkg/storage/cache
+github.com/weaveworks/libgitops/pkg/storage/filterer
+github.com/weaveworks/libgitops/pkg/util
+github.com/weaveworks/libgitops/pkg/util/patch
 # go.opencensus.io v0.22.0
 go.opencensus.io
 go.opencensus.io/internal
@@ -339,7 +348,7 @@ golang.org/x/crypto/poly1305
 golang.org/x/crypto/ssh
 golang.org/x/crypto/ssh/internal/bcrypt_pbkdf
 golang.org/x/crypto/ssh/terminal
-# golang.org/x/net v0.0.0-20191004110552-13f9640d40b9
+# golang.org/x/net v0.0.0-20200226121028-0de0cce0169b
 golang.org/x/net/bpf
 golang.org/x/net/context
 golang.org/x/net/context/ctxhttp
@@ -446,7 +455,7 @@ k8s.io/apimachinery/third_party/forked/golang/json
 k8s.io/apimachinery/third_party/forked/golang/reflect
 # k8s.io/klog v1.0.0
 k8s.io/klog
-# k8s.io/kube-openapi v0.0.0-20200403204345-e1beb1bd0f35 => k8s.io/kube-openapi v0.0.0-20200121204235-bf4fb3bd569c
+# k8s.io/kube-openapi v0.0.0-20200427153329-656914f816f9 => k8s.io/kube-openapi v0.0.0-20200121204235-bf4fb3bd569c
 k8s.io/kube-openapi/pkg/util/proto
 # sigs.k8s.io/structured-merge-diff/v3 v3.0.0
 sigs.k8s.io/structured-merge-diff/v3/value
