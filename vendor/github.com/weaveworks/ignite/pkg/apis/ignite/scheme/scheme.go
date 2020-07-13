@@ -6,8 +6,8 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 
 	"github.com/weaveworks/ignite/pkg/apis/ignite"
-	"github.com/weaveworks/ignite/pkg/apis/ignite/v1alpha1"
 	"github.com/weaveworks/ignite/pkg/apis/ignite/v1alpha2"
+	"github.com/weaveworks/ignite/pkg/apis/ignite/v1alpha3"
 	"github.com/weaveworks/libgitops/pkg/serializer"
 )
 
@@ -30,7 +30,7 @@ func init() {
 // AddToScheme builds the scheme using all known versions of the api.
 func AddToScheme(scheme *runtime.Scheme) {
 	utilruntime.Must(ignite.AddToScheme(Scheme))
-	utilruntime.Must(v1alpha1.AddToScheme(Scheme))
 	utilruntime.Must(v1alpha2.AddToScheme(Scheme))
-	utilruntime.Must(scheme.SetVersionPriority(v1alpha2.SchemeGroupVersion))
+	utilruntime.Must(v1alpha3.AddToScheme(Scheme))
+	utilruntime.Must(scheme.SetVersionPriority(v1alpha3.SchemeGroupVersion))
 }
