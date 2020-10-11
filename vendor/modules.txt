@@ -209,7 +209,7 @@ github.com/hashicorp/hcl/json/token
 github.com/inconshreveable/mousetrap
 # github.com/joho/godotenv v1.3.0
 github.com/joho/godotenv
-# github.com/json-iterator/go v1.1.9
+# github.com/json-iterator/go v1.1.10
 github.com/json-iterator/go
 # github.com/konsorten/go-windows-terminal-sequences v1.0.3
 github.com/konsorten/go-windows-terminal-sequences
@@ -276,7 +276,7 @@ github.com/vishvananda/netlink
 github.com/vishvananda/netlink/nl
 # github.com/vishvananda/netns v0.0.0-20191106174202-0a2b9b5464df
 github.com/vishvananda/netns
-# github.com/weaveworks/ignite v0.6.3 => github.com/darkowlzz/ignite v0.6.1-0.20200713104233-0875009fbadb
+# github.com/weaveworks/ignite v0.7.1-0.20201005162233-65c55dd258b7
 github.com/weaveworks/ignite/cmd/ignite/run
 github.com/weaveworks/ignite/pkg/apis/ignite
 github.com/weaveworks/ignite/pkg/apis/ignite/scheme
@@ -285,6 +285,7 @@ github.com/weaveworks/ignite/pkg/apis/ignite/v1alpha3
 github.com/weaveworks/ignite/pkg/apis/ignite/validation
 github.com/weaveworks/ignite/pkg/apis/meta/v1alpha1
 github.com/weaveworks/ignite/pkg/client
+github.com/weaveworks/ignite/pkg/config
 github.com/weaveworks/ignite/pkg/constants
 github.com/weaveworks/ignite/pkg/dmlegacy
 github.com/weaveworks/ignite/pkg/dmlegacy/cleanup
@@ -340,7 +341,7 @@ golang.org/x/crypto/poly1305
 golang.org/x/crypto/ssh
 golang.org/x/crypto/ssh/internal/bcrypt_pbkdf
 golang.org/x/crypto/ssh/terminal
-# golang.org/x/net v0.0.0-20200625001655-4c5254603344
+# golang.org/x/net v0.0.0-20200822124328-c89045814202
 golang.org/x/net/bpf
 golang.org/x/net/context/ctxhttp
 golang.org/x/net/http/httpguts
@@ -363,7 +364,7 @@ golang.org/x/sys/cpu
 golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/unix
 golang.org/x/sys/windows
-# golang.org/x/text v0.3.2
+# golang.org/x/text v0.3.3
 golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
 golang.org/x/text/unicode/bidi
@@ -450,7 +451,7 @@ k8s.io/apimachinery/third_party/forked/golang/json
 k8s.io/apimachinery/third_party/forked/golang/reflect
 # k8s.io/klog v1.0.0
 k8s.io/klog
-# k8s.io/kube-openapi v0.0.0-20200615155156-dffdd1682719 => k8s.io/kube-openapi v0.0.0-20200121204235-bf4fb3bd569c
+# k8s.io/kube-openapi v0.0.0-20200831175022-64514a1d5d59 => k8s.io/kube-openapi v0.0.0-20200121204235-bf4fb3bd569c
 k8s.io/kube-openapi/pkg/util/proto
 # sigs.k8s.io/structured-merge-diff/v3 v3.0.0
 sigs.k8s.io/structured-merge-diff/v3/value

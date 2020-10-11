@@ -1,9 +1,8 @@
 package run
 
 import (
-	"fmt"
-
 	api "github.com/weaveworks/ignite/pkg/apis/ignite"
+	"github.com/weaveworks/ignite/pkg/config"
 	"github.com/weaveworks/ignite/pkg/operations"
 )
 
@@ -11,22 +10,22 @@ type StopFlags struct {
 	Kill bool
 }
 
-type stopOptions struct {
+type StopOptions struct {
 	*StopFlags
 	vms []*api.VM
 }
 
-func (sf *StopFlags) NewStopOptions(vmMatches []string) (so *stopOptions, err error) {
-	so = &stopOptions{StopFlags: sf}
+func (sf *StopFlags) NewStopOptions(vmMatches []string) (so *StopOptions, err error) {
+	so = &StopOptions{StopFlags: sf}
 	so.vms, err = getVMsForMatches(vmMatches)
 	return
 }
 
-func Stop(so *stopOptions) error {
+func Stop(so *StopOptions) error {
 	for _, vm := range so.vms {
-		// Check if the VM is running
-		if !vm.Running() {
-			return fmt.Errorf("VM %q is not running", vm.GetUID())
+		// Set the runtime and network-plugin providers from the VM status.
+		if err := config.SetAndPopulateProviders(vm.Status.Runtime.Name, vm.Status.Network.Plugin); err != nil {
+			return err
 		}
 
 		// Stop the VM, and optionally kill it

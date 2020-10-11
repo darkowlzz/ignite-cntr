@@ -5,6 +5,7 @@ import (
 
 	api "github.com/weaveworks/ignite/pkg/apis/ignite"
 	"github.com/weaveworks/ignite/pkg/apis/ignite/scheme"
+	"github.com/weaveworks/ignite/pkg/config"
 	"github.com/weaveworks/ignite/pkg/operations"
 	"github.com/weaveworks/ignite/pkg/providers"
 )
@@ -15,15 +16,15 @@ type RmFlags struct {
 	ConfigFile string
 }
 
-type rmOptions struct {
+type RmOptions struct {
 	*RmFlags
 	vms []*api.VM
 }
 
-// NewRmOptions creates and returns rmOptions with all the flags and VMs to be
+// NewRmOptions creates and returns RmOptions with all the flags and VMs to be
 // removed.
-func (rf *RmFlags) NewRmOptions(vmMatches []string) (*rmOptions, error) {
-	ro := &rmOptions{RmFlags: rf}
+func (rf *RmFlags) NewRmOptions(vmMatches []string) (*RmOptions, error) {
+	ro := &RmOptions{RmFlags: rf}
 
 	// If config file is provided, use it to find the VM to be removed.
 	if len(rf.ConfigFile) != 0 {
@@ -52,12 +53,20 @@ func (rf *RmFlags) NewRmOptions(vmMatches []string) (*rmOptions, error) {
 	return ro, err
 }
 
-// Rm removes VMs based on rmOptions.
-func Rm(ro *rmOptions) error {
+// Rm removes VMs based on RmOptions.
+func Rm(ro *RmOptions) error {
 	for _, vm := range ro.vms {
 		// If the VM is running, but we haven't enabled force-mode, return an error
 		if vm.Running() && !ro.Force {
 			return fmt.Errorf("%s is running", vm.GetUID())
+		}
+
+		// Runtime and network info are present only when the VM is running.
+		if vm.Running() {
+			// Set the runtime and network-plugin providers from the VM status.
+			if err := config.SetAndPopulateProviders(vm.Status.Runtime.Name, vm.Status.Network.Plugin); err != nil {
+				return err
+			}
 		}
 
 		// This will first kill the VM container, and then remove it

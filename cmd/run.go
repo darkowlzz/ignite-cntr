@@ -221,7 +221,7 @@ func getIPAndPrivateKey(iclient client.VMClient, name string) (string, string, e
 		return "", "", fmt.Errorf("failed to get IP, VM %q is not running", vm.Name)
 	}
 
-	ipAddrs := vm.Status.IPAddresses
+	ipAddrs := vm.Status.Network.IPAddresses
 	if len(ipAddrs) == 0 {
 		return "", "", fmt.Errorf("failed to get IP, VM %q has no usable IP addresses", vm.Name)
 	}

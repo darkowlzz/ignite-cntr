@@ -31,34 +31,34 @@ type SSHFlags struct {
 	Tty          bool
 }
 
-type sshOptions struct {
+type SshOptions struct {
 	*SSHFlags
 	vm *api.VM
 }
 
 // NewSSHOptions returns ssh options for a given VM.
-func (sf *SSHFlags) NewSSHOptions(vmMatch string) (so *sshOptions, err error) {
-	so = &sshOptions{SSHFlags: sf}
+func (sf *SSHFlags) NewSSHOptions(vmMatch string) (so *SshOptions, err error) {
+	so = &SshOptions{SSHFlags: sf}
 	so.vm, err = getVMForMatch(vmMatch)
 	return
 }
 
 // SSH starts a ssh session as per the provided ssh options.
-func SSH(so *sshOptions) error {
+func SSH(so *SshOptions) error {
 	return runSSH(so.vm, so.IdentityFile, []string{}, so.Tty, so.Timeout)
 }
 
 // runSSH creates and runs ssh session based on the provided arguments.
 // If the command list is empty, ssh shell is created, else the ssh command is
 // executed.
-func runSSH(vm *api.VM, privKeyFile string, command []string, tty bool, timeout uint32) error {
+func runSSH(vm *api.VM, privKeyFile string, command []string, tty bool, timeout uint32) (err error) {
 	// Check if the VM is running.
 	if !vm.Running() {
 		return fmt.Errorf("VM %q is not running", vm.GetUID())
 	}
 
 	// Get the IP address.
-	ipAddrs := vm.Status.IPAddresses
+	ipAddrs := vm.Status.Network.IPAddresses
 	if len(ipAddrs) == 0 {
 		return fmt.Errorf("VM %q has no usable IP addresses", vm.GetUID())
 	}
@@ -104,14 +104,14 @@ func runSSH(vm *api.VM, privKeyFile string, command []string, tty bool, timeout 
 	if err != nil {
 		return printErrAndSetExitCode(fmt.Errorf("failed to dial: %v", err), &exitCode, 1)
 	}
-	defer client.Close()
+	defer util.DeferErr(&err, client.Close)
 
 	// Create a session.
 	session, err := client.NewSession()
 	if err != nil {
 		return printErrAndSetExitCode(fmt.Errorf("failed to create session: %v", err), &exitCode, 1)
 	}
-	defer session.Close()
+	defer util.DeferErr(&err, session.Close)
 
 	// Configure tty if requested.
 	if tty {
@@ -123,7 +123,7 @@ func runSSH(vm *api.VM, privKeyFile string, command []string, tty bool, timeout 
 		if err != nil {
 			return printErrAndSetExitCode(fmt.Errorf("failed to make terminal raw: %v", err), &exitCode, 1)
 		}
-		defer terminal.Restore(fd, state)
+		defer util.DeferErr(&err, func() error { return terminal.Restore(fd, state) })
 
 		// Get the terminal dimensions.
 		w, h, err := terminal.GetSize(fd)
@@ -142,7 +142,7 @@ func runSSH(vm *api.VM, privKeyFile string, command []string, tty bool, timeout 
 			term = defaultTerm
 		}
 
-		if err := session.RequestPty(term, h, w, modes); err != nil {
+		if err = session.RequestPty(term, h, w, modes); err != nil {
 			return printErrAndSetExitCode(fmt.Errorf("request for pseudo terminal failed: %v", err), &exitCode, 1)
 		}
 	}
@@ -155,25 +155,25 @@ func runSSH(vm *api.VM, privKeyFile string, command []string, tty bool, timeout 
 	session.Stdin = os.Stdin
 
 	if len(command) == 0 {
-		if err := session.Shell(); err != nil {
+		if err = session.Shell(); err != nil {
 			return printErrAndSetExitCode(fmt.Errorf("failed to start shell: %v", err), &exitCode, 1)
 		}
 
-		if err := session.Wait(); err != nil {
+		if err = session.Wait(); err != nil {
 			if e, ok := err.(*ssh.ExitError); ok {
 				return printErrAndSetExitCode(err, &exitCode, e.ExitStatus())
 			}
 			return printErrAndSetExitCode(fmt.Errorf("failed waiting for session to exit: %v", err), &exitCode, 1)
 		}
 	} else {
-		if err := session.Run(joinShellCommand(command)); err != nil {
+		if err = session.Run(joinShellCommand(command)); err != nil {
 			if e, ok := err.(*ssh.ExitError); ok {
 				return printErrAndSetExitCode(err, &exitCode, e.ExitStatus())
 			}
 			return printErrAndSetExitCode(fmt.Errorf("failed to run shell command: %s", err), &exitCode, 1)
 		}
 	}
-	return nil
+	return
 }
 
 func newSignerForKey(keyPath string) (ssh.Signer, error) {

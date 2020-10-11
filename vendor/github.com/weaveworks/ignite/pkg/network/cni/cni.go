@@ -189,7 +189,7 @@ func cniToIgniteResult(r *gocni.CNIResult) *network.Result {
 	return result
 }
 
-func (plugin *cniNetworkPlugin) RemoveContainerNetwork(containerID string, isRunning bool) (err error) {
+func (plugin *cniNetworkPlugin) RemoveContainerNetwork(containerID string, portMappings ...meta.PortMapping) (err error) {
 	if err = plugin.initialize(); err != nil {
 		return err
 	}
@@ -208,16 +208,27 @@ func (plugin *cniNetworkPlugin) RemoveContainerNetwork(containerID string, isRun
 		return nil
 	}
 
-	netnsPath := ""
-	if isRunning {
-		netnsPath = fmt.Sprintf(netNSPathFmt, c.PID)
-		if c.PID == 0 {
-			log.Info("CNI failed to retrieve network namespace path, PID was 0")
-			return nil
-		}
+	netnsPath := fmt.Sprintf(netNSPathFmt, c.PID)
+	if c.PID == 0 {
+		log.Info("CNI failed to retrieve network namespace path, PID was 0")
+		return nil
 	}
 
-	return plugin.cni.Remove(context.Background(), containerID, netnsPath)
+	pms := make([]gocni.PortMapping, 0, len(portMappings))
+	for _, pm := range portMappings {
+		hostIP := ""
+		if pm.BindAddress != nil {
+			hostIP = pm.BindAddress.String()
+		}
+		pms = append(pms, gocni.PortMapping{
+			HostPort:      int32(pm.HostPort),
+			ContainerPort: int32(pm.VMPort),
+			Protocol:      pm.Protocol.String(),
+			HostIP:        hostIP,
+		})
+	}
+
+	return plugin.cni.Remove(context.Background(), containerID, netnsPath, gocni.WithCapabilityPortMap(pms))
 }
 
 // cleanupBridges makes the defaultNetworkName CNI network config not leak iptables rules
@@ -239,7 +250,7 @@ func (plugin *cniNetworkPlugin) cleanupBridges(containerID string) error {
 		}
 
 		if hasBridge {
-			log.Debugf("TeardownIPMasq for container %q on CNI network %q which contains a bridge", containerID, net.Config.Name)
+			log.Debugf("Teardown IPMasq for container %q on CNI network %q which contains a bridge", containerID, net.Config.Name)
 			comment := utils.FormatComment(net.Config.Name, containerID)
 			for _, t := range result {
 				if err = ip.TeardownIPMasq(t.ip, t.chain, comment); err != nil {

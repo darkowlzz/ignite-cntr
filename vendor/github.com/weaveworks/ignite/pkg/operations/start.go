@@ -25,7 +25,8 @@ func StartVM(vm *api.VM, debug bool) error {
 	RemoveVMContainer(inspectResult)
 
 	// Setup the snapshot overlay filesystem
-	if err := dmlegacy.ActivateSnapshot(vm); err != nil {
+	snapshotDevPath, err := dmlegacy.ActivateSnapshot(vm)
+	if err != nil {
 		return err
 	}
 
@@ -70,7 +71,7 @@ func StartVM(vm *api.VM, debug bool) error {
 			runtime.BindBoth("/dev/mapper/control"), // This enables containerized Ignite to remove its own dm snapshot
 			runtime.BindBoth("/dev/net/tun"),        // Needed for creating TAP adapters
 			runtime.BindBoth("/dev/kvm"),            // Pass through virtualization support
-			runtime.BindBoth(vm.SnapshotDev()),      // The block device to boot from
+			runtime.BindBoth(snapshotDevPath),       // The block device to boot from
 		},
 		StopTimeout:  constants.STOP_TIMEOUT + constants.IGNITE_TIMEOUT,
 		PortBindings: vm.Spec.Network.Ports, // Add the port mappings to Docker
@@ -123,16 +124,18 @@ func StartVM(vm *api.VM, debug bool) error {
 	}
 
 	// Set the container ID for the VM
-	vm.Status.Runtime = &api.Runtime{ID: containerID}
+	vm.Status.Runtime.ID = containerID
+	vm.Status.Runtime.Name = providers.RuntimeName
 
 	// Set the start time for the VM
 	startTime := apiruntime.Timestamp()
 	vm.Status.StartTime = &startTime
+	vm.Status.Network.Plugin = providers.NetworkPluginName
 
 	// Append non-loopback runtime IP addresses of the VM to its state
 	for _, addr := range result.Addresses {
 		if !addr.IP.IsLoopback() {
-			vm.Status.IPAddresses = append(vm.Status.IPAddresses, addr.IP)
+			vm.Status.Network.IPAddresses = append(vm.Status.Network.IPAddresses, addr.IP)
 		}
 	}
 
@@ -167,7 +170,7 @@ func waitForSpawn(vm *api.VM) error {
 	const checkInterval = 100 * time.Millisecond
 
 	startTime := time.Now()
-	for time.Now().Sub(startTime) < timeout {
+	for time.Since(startTime) < timeout {
 		time.Sleep(checkInterval)
 
 		if util.FileExists(path.Join(vm.ObjectPath(), constants.PROMETHEUS_SOCKET)) {

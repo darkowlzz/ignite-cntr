@@ -10,10 +10,12 @@ import (
 	"github.com/weaveworks/ignite/pkg/apis/ignite/scheme"
 	"github.com/weaveworks/ignite/pkg/apis/ignite/validation"
 	meta "github.com/weaveworks/ignite/pkg/apis/meta/v1alpha1"
+	"github.com/weaveworks/ignite/pkg/config"
 	"github.com/weaveworks/ignite/pkg/dmlegacy"
 	"github.com/weaveworks/ignite/pkg/metadata"
 	"github.com/weaveworks/ignite/pkg/operations"
 	"github.com/weaveworks/ignite/pkg/providers"
+	"github.com/weaveworks/ignite/pkg/util"
 
 	flag "github.com/spf13/pflag"
 	patchutil "github.com/weaveworks/libgitops/pkg/util/patch"
@@ -40,13 +42,13 @@ type CreateFlags struct {
 	RequireName bool
 }
 
-type createOptions struct {
+type CreateOptions struct {
 	*CreateFlags
 	image  *api.Image
 	kernel *api.Kernel
 }
 
-func (cf *CreateFlags) NewCreateOptions(args []string, fs *flag.FlagSet) (*createOptions, error) {
+func (cf *CreateFlags) NewCreateOptions(args []string, fs *flag.FlagSet) (*CreateOptions, error) {
 	// Create a new base VM and configure it by combining the component config,
 	// VM config file and flags.
 	baseVM := providers.Client.VMs().New()
@@ -54,6 +56,15 @@ func (cf *CreateFlags) NewCreateOptions(args []string, fs *flag.FlagSet) (*creat
 	// If component config is in use, set the VMDefaults on the base VM.
 	if providers.ComponentConfig != nil {
 		baseVM.Spec = providers.ComponentConfig.Spec.VMDefaults
+	}
+
+	// Set the runtime and network-plugin on the VM. This overrides the global
+	// config.
+	baseVM.Status.Runtime.Name = providers.RuntimeName
+	baseVM.Status.Network.Plugin = providers.NetworkPluginName
+	// Populate the runtime and network-plugin providers.
+	if err := config.SetAndPopulateProviders(providers.RuntimeName, providers.NetworkPluginName); err != nil {
+		return nil, err
 	}
 
 	// Set the passed image argument on the new VM spec.
@@ -64,6 +75,11 @@ func (cf *CreateFlags) NewCreateOptions(args []string, fs *flag.FlagSet) (*creat
 			return nil, err
 		}
 		baseVM.Spec.Image.OCI = ociRef
+	}
+
+	// Generate a VM name and UID if not set yet.
+	if err := metadata.SetNameAndUID(baseVM, providers.Client); err != nil {
+		return nil, err
 	}
 
 	// Apply the VM config on the base VM, if a VM config is given.
@@ -91,7 +107,7 @@ func (cf *CreateFlags) NewCreateOptions(args []string, fs *flag.FlagSet) (*creat
 		return nil, err
 	}
 
-	co := &createOptions{CreateFlags: cf}
+	co := &CreateOptions{CreateFlags: cf}
 
 	// Get the image, or import it if it doesn't exist.
 	var err error
@@ -214,27 +230,29 @@ func applyVMFlagOverrides(baseVM *api.VM, cf *CreateFlags, fs *flag.FlagSet) err
 	return err
 }
 
-func Create(co *createOptions) error {
+func Create(co *CreateOptions) (err error) {
 	// Generate a random UID and Name
-	if err := metadata.SetNameAndUID(co.VM, providers.Client); err != nil {
-		return err
+	if err = metadata.SetNameAndUID(co.VM, providers.Client); err != nil {
+		return
 	}
 	// Set VM labels.
-	if err := metadata.SetLabels(co.VM, co.Labels); err != nil {
-		return err
+	if err = metadata.SetLabels(co.VM, co.Labels); err != nil {
+		return
 	}
-	defer metadata.Cleanup(co.VM, false) // TODO: Handle silent
+	defer util.DeferErr(&err, func() error { return metadata.Cleanup(co.VM, false) })
 
-	if err := providers.Client.VMs().Set(co.VM); err != nil {
-		return err
+	if err = providers.Client.VMs().Set(co.VM); err != nil {
+		return
 	}
 
 	// Allocate and populate the overlay file
-	if err := dmlegacy.AllocateAndPopulateOverlay(co.VM); err != nil {
-		return err
+	if err = dmlegacy.AllocateAndPopulateOverlay(co.VM); err != nil {
+		return
 	}
 
-	return metadata.Success(co.VM)
+	err = metadata.Success(co.VM)
+
+	return
 }
 
 // TODO: Move this to meta, or a helper in API

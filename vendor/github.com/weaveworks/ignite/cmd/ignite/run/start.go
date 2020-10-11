@@ -7,13 +7,17 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	flag "github.com/spf13/pflag"
+	"golang.org/x/crypto/ssh"
+	"k8s.io/apimachinery/pkg/util/sets"
+
 	"github.com/weaveworks/ignite/pkg/apis/ignite"
+	"github.com/weaveworks/ignite/pkg/config"
 	"github.com/weaveworks/ignite/pkg/constants"
 	"github.com/weaveworks/ignite/pkg/operations"
 	"github.com/weaveworks/ignite/pkg/preflight/checkers"
+	"github.com/weaveworks/ignite/pkg/providers"
 	"github.com/weaveworks/ignite/pkg/util"
-	"golang.org/x/crypto/ssh"
-	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 type StartFlags struct {
@@ -22,12 +26,12 @@ type StartFlags struct {
 	IgnoredPreflightErrors []string
 }
 
-type startOptions struct {
+type StartOptions struct {
 	*StartFlags
-	*attachOptions
+	*AttachOptions
 }
 
-func (sf *StartFlags) NewStartOptions(vmMatch string) (*startOptions, error) {
+func (sf *StartFlags) NewStartOptions(vmMatch string) (*StartOptions, error) {
 	ao, err := NewAttachOptions(vmMatch)
 	if err != nil {
 		return nil, err
@@ -36,13 +40,28 @@ func (sf *StartFlags) NewStartOptions(vmMatch string) (*startOptions, error) {
 	// Disable running check as it takes a while for ignite-spawn to update the state
 	ao.checkRunning = false
 
-	return &startOptions{sf, ao}, nil
+	return &StartOptions{sf, ao}, nil
 }
 
-func Start(so *startOptions) error {
+func Start(so *StartOptions, fs *flag.FlagSet) error {
 	// Check if the given VM is already running
 	if so.vm.Running() {
 		return fmt.Errorf("VM %q is already running", so.vm.GetUID())
+	}
+
+	// In case the runtime and network-plugin are specified explicitly at
+	// start, set the runtime and network-plugin on the VM. This overrides the
+	// global config and config on the VM object, if any.
+	if fs.Changed("runtime") {
+		so.vm.Status.Runtime.Name = providers.RuntimeName
+	}
+	if fs.Changed("network-plugin") {
+		so.vm.Status.Network.Plugin = providers.NetworkPluginName
+	}
+
+	// Set the runtime and network-plugin providers from the VM status.
+	if err := config.SetAndPopulateProviders(so.vm.Status.Runtime.Name, so.vm.Status.Network.Plugin); err != nil {
+		return err
 	}
 
 	ignoredPreflightErrors := sets.NewString(util.ToLower(so.StartFlags.IgnoredPreflightErrors)...)
@@ -55,7 +74,7 @@ func Start(so *startOptions) error {
 	}
 
 	// When --ssh is enabled, wait until SSH service started on port 22 at most N seconds
-	if ssh := so.vm.Spec.SSH; ssh != nil && ssh.Generate && len(so.vm.Status.IPAddresses) > 0 {
+	if ssh := so.vm.Spec.SSH; ssh != nil && ssh.Generate && len(so.vm.Status.Network.IPAddresses) > 0 {
 		if err := waitForSSH(so.vm, constants.SSH_DEFAULT_TIMEOUT_SECONDS, 5); err != nil {
 			return err
 		}
@@ -63,13 +82,13 @@ func Start(so *startOptions) error {
 
 	// If starting interactively, attach after starting
 	if so.Interactive {
-		return Attach(so.attachOptions)
+		return Attach(so.AttachOptions)
 	}
 	return nil
 }
 
 func dialSuccess(vm *ignite.VM, seconds int) error {
-	addr := vm.Status.IPAddresses[0].String() + ":22"
+	addr := vm.Status.Network.IPAddresses[0].String() + ":22"
 	perSecond := 10
 	delay := time.Second / time.Duration(perSecond)
 	var err error
@@ -119,7 +138,7 @@ func waitForSSH(vm *ignite.VM, dialSeconds, sshTimeout int) error {
 		Timeout:         time.Duration(sshTimeout) * time.Second,
 	}
 
-	addr := vm.Status.IPAddresses[0].String() + ":22"
+	addr := vm.Status.Network.IPAddresses[0].String() + ":22"
 	sshConn, err := ssh.Dial("tcp", addr, config)
 	if err != nil {
 		if strings.Contains(err.Error(), "unable to authenticate") {

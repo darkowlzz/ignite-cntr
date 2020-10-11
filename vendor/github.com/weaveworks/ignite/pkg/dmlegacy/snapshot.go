@@ -17,20 +17,21 @@ import (
 
 const snapshotLockFileName = "ignite-snapshot.lock"
 
-// ActivateSnapshot sets up the snapshot with devicemapper so that it is active and can be used
-func ActivateSnapshot(vm *api.VM) error {
+// ActivateSnapshot sets up the snapshot with devicemapper so that it is active and can be used.
+// It returns the path of the bootable snapshot device.
+func ActivateSnapshot(vm *api.VM) (devicePath string, err error) {
 	device := util.NewPrefixer().Prefix(vm.GetUID())
-	devicePath := vm.SnapshotDev()
+	devicePath = vm.SnapshotDev()
 
 	// Return if the snapshot is already setup
 	if util.FileExists(devicePath) {
-		return nil
+		return
 	}
 
 	// Get the image UID from the VM
 	imageUID, err := lookup.ImageUIDForVM(vm, providers.Client)
 	if err != nil {
-		return err
+		return
 	}
 
 	// NOTE: Multiple ignite processes trying to create loop devices at the
@@ -47,39 +48,40 @@ func ActivateSnapshot(vm *api.VM) error {
 	// Create a lockfile and obtain a lock.
 	lock, err := lockfile.New(glpath)
 	if err != nil {
-		return fmt.Errorf("failed to create lock: %v", err)
+		err = fmt.Errorf("failed to create lockfile: %w", err)
+		return
 	}
-	if err := obtainLock(lock); err != nil {
-		return err
+	if err = obtainLock(lock); err != nil {
+		return
 	}
 	// Release the lock at the end.
-	defer lock.Unlock()
+	defer util.DeferErr(&err, lock.Unlock)
 
 	// Setup loop device for the image
 	imageLoop, err := newLoopDev(path.Join(constants.IMAGE_DIR, imageUID.String(), constants.IMAGE_FS), true)
 	if err != nil {
-		return err
+		return
 	}
 
 	// Make sure the all directories above the snapshot directory exists
-	if err := os.MkdirAll(path.Dir(vm.OverlayFile()), 0755); err != nil {
-		return err
+	if err = os.MkdirAll(path.Dir(vm.OverlayFile()), 0755); err != nil {
+		return
 	}
 
 	// Setup loop device for the VM overlay
 	overlayLoop, err := newLoopDev(vm.OverlayFile(), false)
 	if err != nil {
-		return err
+		return
 	}
 
 	imageLoopSize, err := imageLoop.Size512K()
 	if err != nil {
-		return err
+		return
 	}
 
 	overlayLoopSize, err := overlayLoop.Size512K()
 	if err != nil {
-		return err
+		return
 	}
 
 	// If the overlay is larger than the base image, we need to set up an additional dm device
@@ -95,8 +97,8 @@ func ActivateSnapshot(vm *api.VM) error {
 		dmBaseTable := []byte(fmt.Sprintf("0 %d linear %s 0\n%d %d zero", imageLoopSize, imageLoop.Path(), imageLoopSize, overlayLoopSize))
 
 		baseDevice := fmt.Sprintf("%s-base", device)
-		if err := runDMSetup(baseDevice, dmBaseTable); err != nil {
-			return err
+		if err = runDMSetup(baseDevice, dmBaseTable); err != nil {
+			return
 		}
 
 		basePath = fmt.Sprintf("/dev/mapper/%s", baseDevice)
@@ -105,8 +107,9 @@ func ActivateSnapshot(vm *api.VM) error {
 	// "0 8388608 snapshot /dev/{loop0,mapper/ignite-<uid>-base} /dev/loop1 P 8"
 	dmTable := []byte(fmt.Sprintf("0 %d snapshot %s %s P 8", overlayLoopSize, basePath, overlayLoop.Path()))
 
-	if err := runDMSetup(device, dmTable); err != nil {
-		return err
+	// setup the main boot device
+	if err = runDMSetup(device, dmTable); err != nil {
+		return
 	}
 
 	// Repair the filesystem in case it has errors
@@ -115,18 +118,20 @@ func ActivateSnapshot(vm *api.VM) error {
 
 	// If the overlay is larger than the image, call resize2fs to make the filesystem fill the overlay
 	if overlayLoopSize > imageLoopSize {
-		if _, err := util.ExecuteCommand("resize2fs", devicePath); err != nil {
-			return err
+		if _, err = util.ExecuteCommand("resize2fs", devicePath); err != nil {
+			return
 		}
 	}
 
 	// By detaching the loop devices after setting up the snapshot
 	// they get automatically removed when the snapshot is removed.
-	if err := imageLoop.Detach(); err != nil {
-		return err
+	if err = imageLoop.Detach(); err != nil {
+		return
 	}
 
-	return overlayLoop.Detach()
+	err = overlayLoop.Detach()
+
+	return
 }
 
 // obtainLock tries to obtain a lock and retries if the lock is owned by
