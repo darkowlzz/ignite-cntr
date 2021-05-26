@@ -12,6 +12,8 @@ import (
 	"github.com/docker/docker/api/types/container"
 	cont "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/errdefs"
+	log "github.com/sirupsen/logrus"
 	meta "github.com/weaveworks/ignite/pkg/apis/meta/v1alpha1"
 	"github.com/weaveworks/ignite/pkg/preflight"
 	"github.com/weaveworks/ignite/pkg/preflight/checkers"
@@ -88,7 +90,7 @@ func (dc *dockerClient) ExportImage(image meta.OCIImageRef) (r io.ReadCloser, cl
 	config, err := dc.client.ContainerCreate(context.Background(), &container.Config{
 		Cmd:   []string{"sh"}, // We need a temporary command, this doesn't need to exist in the image
 		Image: image.Normalized(),
-	}, nil, nil, "")
+	}, nil, nil, nil, "")
 	if err != nil {
 		return
 	}
@@ -166,7 +168,7 @@ func (dc *dockerClient) RunContainer(image meta.OCIImageRef, config *runtime.Con
 		Resources: container.Resources{
 			Devices: devices,
 		},
-	}, nil, name)
+	}, nil, nil, name)
 	if err != nil {
 		return "", err
 	}
@@ -175,21 +177,45 @@ func (dc *dockerClient) RunContainer(image meta.OCIImageRef, config *runtime.Con
 }
 
 func (dc *dockerClient) StopContainer(container string, timeout *time.Duration) error {
+	// Start waiting before we do the stop, to avoid race
+	errC, readyC := make(chan error), make(chan struct{})
+	go func() {
+		errC <- dc.waitForContainer(container, cont.WaitConditionNotRunning, &readyC)
+	}()
+	<-readyC // wait until removal detection has started
+
 	if err := dc.client.ContainerStop(context.Background(), container, timeout); err != nil {
+		// If the container is not found, return nil, no-op.
+		if errdefs.IsNotFound(err) {
+			log.Warn(err)
+			return nil
+		}
 		return err
 	}
 
 	// Wait for the container to be stopped
-	return dc.waitForContainer(container, cont.WaitConditionNotRunning, nil)
+	return <-errC
 }
 
 func (dc *dockerClient) KillContainer(container, signal string) error {
+	// Start waiting before we do the kill, to avoid race
+	errC, readyC := make(chan error), make(chan struct{})
+	go func() {
+		errC <- dc.waitForContainer(container, cont.WaitConditionNotRunning, &readyC)
+	}()
+	<-readyC // wait until removal detection has started
+
 	if err := dc.client.ContainerKill(context.Background(), container, signal); err != nil {
+		// If the container is not found, return nil, no-op.
+		if errdefs.IsNotFound(err) {
+			log.Warn(err)
+			return nil
+		}
 		return err
 	}
 
 	// Wait for the container to be killed
-	return dc.waitForContainer(container, cont.WaitConditionNotRunning, nil)
+	return <-errC
 }
 
 func (dc *dockerClient) RemoveContainer(container string) error {
@@ -204,6 +230,11 @@ func (dc *dockerClient) RemoveContainer(container string) error {
 
 	<-readyC // The ready channel is used to wait until removal detection has started
 	if err := dc.client.ContainerRemove(context.Background(), container, types.ContainerRemoveOptions{}); err != nil {
+		// If the container is not found, return nil, no-op.
+		if errdefs.IsNotFound(err) {
+			log.Warn(err)
+			return nil
+		}
 		return err
 	}
 
@@ -245,7 +276,7 @@ func (dc *dockerClient) waitForContainer(container string, condition cont.WaitCo
 			return fmt.Errorf("failed to wait for container %q: %s", container, result.Error.Message)
 		}
 	case err := <-errC:
-		return err
+		return fmt.Errorf("error waiting for container %q: %w", container, err)
 	}
 
 	return nil

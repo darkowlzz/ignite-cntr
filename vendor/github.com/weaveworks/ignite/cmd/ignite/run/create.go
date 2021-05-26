@@ -58,8 +58,9 @@ func (cf *CreateFlags) NewCreateOptions(args []string, fs *flag.FlagSet) (*Creat
 		baseVM.Spec = providers.ComponentConfig.Spec.VMDefaults
 	}
 
-	// Set the runtime and network-plugin on the VM. This overrides the global
-	// config.
+	// Initialize the VM's Prefixer
+	baseVM.Status.IDPrefix = providers.IDPrefix
+	// Set the runtime and network-plugin on the VM, then override the global config.
 	baseVM.Status.Runtime.Name = providers.RuntimeName
 	baseVM.Status.Network.Plugin = providers.NetworkPluginName
 	// Populate the runtime and network-plugin providers.
@@ -210,16 +211,20 @@ func applyVMFlagOverrides(baseVM *api.VM, cf *CreateFlags, fs *flag.FlagSet) err
 		baseVM.Spec.Storage = cf.VM.Spec.Storage
 	}
 
-	// Parse the --copy-files flag.
-	baseVM.Spec.CopyFiles, err = parseFileMappings(cf.CopyFiles)
-	if err != nil {
-		return err
+	if len(cf.CopyFiles) > 0 {
+		// Parse the --copy-files flag.
+		baseVM.Spec.CopyFiles, err = parseFileMappings(cf.CopyFiles)
+		if err != nil {
+			return err
+		}
 	}
 
-	// Parse the given port mappings.
-	baseVM.Spec.Network.Ports, err = meta.ParsePortMappings(cf.PortMappings)
-	if err != nil {
-		return err
+	if len(cf.PortMappings) > 0 {
+		// Parse the given port mappings.
+		baseVM.Spec.Network.Ports, err = meta.ParsePortMappings(cf.PortMappings)
+		if err != nil {
+			return err
+		}
 	}
 
 	// If the SSH flag was set, copy it over to the API type

@@ -3,7 +3,7 @@
 CACHE_DIR = $(shell pwd)/bin/.cache
 PROJECT = github.com/darkowlzz/ignite-cntr
 GOARCH ?= amd64
-GO_VERSION = 1.14.2
+GO_VERSION = 1.16.3
 
 .PHONY: help
 help: ## Display this help.

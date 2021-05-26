@@ -20,7 +20,7 @@ const snapshotLockFileName = "ignite-snapshot.lock"
 // ActivateSnapshot sets up the snapshot with devicemapper so that it is active and can be used.
 // It returns the path of the bootable snapshot device.
 func ActivateSnapshot(vm *api.VM) (devicePath string, err error) {
-	device := util.NewPrefixer().Prefix(vm.GetUID())
+	device := vm.PrefixedID()
 	devicePath = vm.SnapshotDev()
 
 	// Return if the snapshot is already setup
@@ -41,6 +41,10 @@ func ActivateSnapshot(vm *api.VM) (devicePath string, err error) {
 	// Serialize this operation by creating a global lock file when creating a
 	// loop device and release the lock after setting up device mapper using the
 	// loop device.
+	// Also, concurrent interactions with device mapper results in the error:
+	//   Device or resource busy
+	// Serializing the interaction with device mapper helps avoid issues due to
+	// race conditions.
 
 	// Global lock path.
 	glpath := filepath.Join(os.TempDir(), snapshotLockFileName)

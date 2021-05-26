@@ -8,11 +8,10 @@ import (
 	api "github.com/weaveworks/ignite/pkg/apis/ignite"
 	meta "github.com/weaveworks/ignite/pkg/apis/meta/v1alpha1"
 	"github.com/weaveworks/ignite/pkg/client"
-	"github.com/weaveworks/ignite/pkg/dmlegacy/cleanup"
+	"github.com/weaveworks/ignite/pkg/dmlegacy"
 	"github.com/weaveworks/ignite/pkg/logs"
 	"github.com/weaveworks/ignite/pkg/providers"
 	"github.com/weaveworks/ignite/pkg/runtime"
-	"github.com/weaveworks/ignite/pkg/util"
 )
 
 const (
@@ -33,7 +32,7 @@ func CleanupVM(vm *api.VM) error {
 	// Runtime information is available only when the VM is running.
 	if vm.Running() {
 		// Inspect the container before trying to stop it and it gets auto-removed
-		inspectResult, _ := providers.Runtime.InspectContainer(util.NewPrefixer().Prefix(vm.GetUID()))
+		inspectResult, _ := providers.Runtime.InspectContainer(vm.PrefixedID())
 
 		// If the VM is running, try to kill it first so we don't leave dangling containers. Otherwise, try to cleanup VM networking.
 		if err := StopVM(vm, true, true); err != nil {
@@ -50,7 +49,7 @@ func CleanupVM(vm *api.VM) error {
 	// After removing the VM container, if the Snapshot Device is still there, clean up
 	if _, err := os.Stat(vm.SnapshotDev()); err == nil {
 		// try remove it again with DeactivateSnapshot
-		if err := cleanup.DeactivateSnapshot(vm); err != nil {
+		if err := dmlegacy.DeactivateSnapshot(vm); err != nil {
 			return err
 		}
 	}
@@ -79,7 +78,7 @@ func RemoveVMContainer(result *runtime.ContainerInspectResult) {
 // StopVM removes networking of the given VM and stops or kills it
 func StopVM(vm *api.VM, kill, silent bool) error {
 	var err error
-	container := util.NewPrefixer().Prefix(vm.GetUID())
+	container := vm.PrefixedID()
 	action := "stop"
 
 	if !vm.Running() && !logs.Quiet {
@@ -87,7 +86,7 @@ func StopVM(vm *api.VM, kill, silent bool) error {
 	}
 
 	// Remove VM networking
-	if err = removeNetworking(util.NewPrefixer().Prefix(vm.GetUID()), vm.Spec.Network.Ports...); err != nil {
+	if err = removeNetworking(vm.PrefixedID(), vm.Spec.Network.Ports...); err != nil {
 		log.Warnf("Failed to cleanup networking for stopped container %s %q: %v", vm.GetKind(), vm.GetUID(), err)
 
 		return err

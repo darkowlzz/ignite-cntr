@@ -3,7 +3,7 @@ jobs:
   build:
     working_directory: /go/src/github.com/darkowlzz/ignite-cntr
     docker:
-      - image: circleci/golang:1.14.2
+      - image: circleci/golang:1.16.3
     steps:
       - checkout
       - run: make build
